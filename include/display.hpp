@@ -32,10 +32,10 @@ public:
 
       // SPI bus settings
       cfg.spi_host = SPI_PORT;   // Select SPI port to use (0 or 1)
-      cfg.spi_mode = 0;          // Set SPI communication mode (0 ~ 3)
-      cfg.freq_write = 20000000; // SPI clock for transmission (max 80MHz, rounded to an integer divisor of 80MHz)
+      cfg.spi_mode = 3;          // Set SPI communication mode (0 ~ 3)
+      cfg.freq_write = 80000000; // SPI clock for transmission (max 80MHz, rounded to an integer divisor of 80MHz)
       cfg.freq_read = 20000000;  // SPI clock for reception
-
+      
       cfg.pin_sclk = TFT_SCLK; // Set SPI SCLK pin number
       cfg.pin_mosi = TFT_MOSI; // Set SPI MOSI pin number
       cfg.pin_miso = TFT_MISO; // Set SPI MISO pin number (-1 = disable)
@@ -60,6 +60,8 @@ public:
       // cfg.offset_rotation = 4; // Offset value for rotation direction 0~7 (4~7 are upside down)
       cfg.invert = true; // Set to true if panel brightness is inverted
       // cfg.rgb_order = true;   // Set to true if panel red and blue are swapped
+
+      
 
       _panel_instance.config(cfg);
     }

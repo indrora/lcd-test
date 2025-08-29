@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <pico/time.h>
+#include "mutex"
 #include "display.hpp"
 #include "controller.h"
 #include "background.h"
@@ -12,50 +13,60 @@ struct repeating_timer ui_refresh_timer;
 struct repeating_timer ui_fps_timer;
 
 static float fps = 0;
-static uint64_t frames;
+static uint_fast64_t frames;
 static int yPos= 16;
+bool screen_damaged = false; 
+uint_fast64_t frametime;
 
 LGFX_Sprite bg;
 LGFX_Sprite ctlr;
 LGFX_Sprite screen;
 
+auto_init_mutex(screen_damaed_mutex);
 
 bool calc_fps(struct repeating_timer *t) {
-fps = frames/ ( abs((*t).delay_us) / 1000000.0f);
+
+auto period = ( abs((*t).delay_us) / 1000000.0f);
+
+  fps = frames/ period;
+  float usFrame = (float)frametime/(float)frames;
+Serial.printf("fps = %g, %fuS/frame\n", fps, usFrame);
+frametime = 0;
 frames = 0;
-
-Serial.printf("fps = %3f\n", fps);
-
 return true;
 }
 
-int dropped_frames = 0;
+void drawUI () {
 
-bool update_ui(struct repeating_timer *t) {
-
-  if(display.displayBusy())
-  {
-    dropped_frames++;
-    return true;
-  }
+  
+  auto _framestart = time_us_64();
   screen.clear();
-  bg.pushSprite(&screen, 0,0);
-
-  //ctlr.pushSprite(&screen, 10,yPos);
-
+  screen.drawPng(__BACKGROUND_PNG, __BACKGROUND_PNG_SIZE);
   screen.drawPng(__CONTROLLER_PNG, __CONTROLLER_PNG_SIZE, 10, yPos);
-
-  screen.drawNumber(dropped_frames, 0,146);
+  screen.drawNumber(frames, 0,146);
   screen.drawFloat(fps, 2, 0, 152);
+  
   
   display.startWrite();
   screen.pushSprite(&display, 0,0);
   display.endWrite();
-  
+  auto cframetime = time_us_64() - _framestart;
+  frametime += + cframetime;
   frames++;
-
-  return true;
+  screen_damaged = false;
 }
+
+void loopUI()
+{
+  while(1) {
+    if(!screen_damaged || screen.displayBusy() ) yield();
+    mutex_enter_blocking(&screen_damaed_mutex);
+    drawUI();
+    mutex_exit(&screen_damaed_mutex);
+    yield();
+  }
+}
+
 
 void setup()
 {
@@ -77,32 +88,34 @@ void setup()
 
   bg.createSprite(80,160);
   bg.drawPng(__BACKGROUND_PNG, __BACKGROUND_PNG_SIZE);
-  ctlr.createSprite(32,32);
-  ctlr.setColorDepth(16);
-  ctlr.fillSprite(TFT_TRANSPARENT);
-  ctlr.drawPng(__CONTROLLER_PNG, __CONTROLLER_PNG_SIZE);
-  
+
   screen.createSprite(80,160);
-
-
-  delay(5000);
-
-  add_repeating_timer_us(100, update_ui, NULL, &ui_refresh_timer);
   frames = 0;
-  add_repeating_timer_ms(-2000, calc_fps, NULL, &ui_fps_timer);
 
-  Serial.println("Adding timer to pool");
-  /*
-   */
-  Serial.println("Finished setup");
+  // Start the UI loop
+  multicore_launch_core1(loopUI);
+  
+  // FPS accounting is done by a timer.
+  add_repeating_timer_ms(1000, calc_fps, NULL, &ui_fps_timer);
+
+}
+
+void damage_screen() {
+  // take the mutex
+  mutex_enter_blocking(&screen_damaed_mutex);
+  screen_damaged = true;
+  mutex_exit(&screen_damaed_mutex);
 }
 
 int dY = 1;
 void loop()
 {
-
+  auto deadline = millis();
   if(yPos > 128) dY = -1;
   if(yPos < 10) dY = 1;
   yPos += dY;
-  sleep_ms(100);
+  
+  damage_screen();
+
+  while( millis() < deadline + 1) yield();
 }
