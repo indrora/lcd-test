@@ -17,37 +17,42 @@ static int yPos= 16;
 
 LGFX_Sprite bg;
 LGFX_Sprite ctlr;
+LGFX_Sprite screen;
 
 
 bool calc_fps(struct repeating_timer *t) {
 fps = frames/ ( abs((*t).delay_us) / 1000000.0f);
 frames = 0;
 
-Serial.printf("fps = %3d\n", fps);
+Serial.printf("fps = %3f\n", fps);
 
 return true;
 }
 
+int dropped_frames = 0;
+
 bool update_ui(struct repeating_timer *t) {
 
-  if(display.displayBusy()) return true;
+  if(display.displayBusy())
+  {
+    dropped_frames++;
+    return true;
+  }
+  screen.clear();
+  bg.pushSprite(&screen, 0,0);
 
-  display.startWrite();
-  display.clear();
+  //ctlr.pushSprite(&screen, 10,yPos);
 
-  //display.drawPng(__BACKGROUND_PNG, __BACKGROUND_PNG_SIZE, 0,0);
+  screen.drawPng(__CONTROLLER_PNG, __CONTROLLER_PNG_SIZE, 10, yPos);
+
+  screen.drawNumber(dropped_frames, 0,146);
+  screen.drawFloat(fps, 2, 0, 152);
   
-  //display.drawPng(__CONTROLLER_PNG, __CONTROLLER_PNG_SIZE, 10, yPos);
-
-  bg.pushSprite(&display, 0,0);
-  ctlr.pushSprite(&display, 10,yPos);
-
-
-  display.drawNumber(millis(), 0,146);
-  display.drawFloat(fps, 2, 0, 152);
-  frames++;
+  display.startWrite();
+  screen.pushSprite(&display, 0,0);
   display.endWrite();
-  display.display();
+  
+  frames++;
 
   return true;
 }
@@ -73,13 +78,16 @@ void setup()
   bg.createSprite(80,160);
   bg.drawPng(__BACKGROUND_PNG, __BACKGROUND_PNG_SIZE);
   ctlr.createSprite(32,32);
-  //ctlr.setColorDepth(32);
+  ctlr.setColorDepth(16);
+  ctlr.fillSprite(TFT_TRANSPARENT);
   ctlr.drawPng(__CONTROLLER_PNG, __CONTROLLER_PNG_SIZE);
+  
+  screen.createSprite(80,160);
 
 
   delay(5000);
 
-  add_repeating_timer_ms(100, update_ui, NULL, &ui_refresh_timer);
+  add_repeating_timer_us(100, update_ui, NULL, &ui_refresh_timer);
   frames = 0;
   add_repeating_timer_ms(-2000, calc_fps, NULL, &ui_fps_timer);
 
