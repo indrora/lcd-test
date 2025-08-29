@@ -33,7 +33,7 @@ public:
       // SPI bus settings
       cfg.spi_host = SPI_PORT;   // Select SPI port to use (0 or 1)
       cfg.spi_mode = 0;          // Set SPI communication mode (0 ~ 3)
-      cfg.freq_write = 40000000; // SPI clock for transmission (max 80MHz, rounded to an integer divisor of 80MHz)
+      cfg.freq_write = 20000000; // SPI clock for transmission (max 80MHz, rounded to an integer divisor of 80MHz)
       cfg.freq_read = 20000000;  // SPI clock for reception
 
       cfg.pin_sclk = TFT_SCLK; // Set SPI SCLK pin number
@@ -70,7 +70,7 @@ public:
 
       cfg.pin_bl = TFT_BLK;         // Pin number where backlight is connected
       cfg.invert = false;           // Set to true to invert backlight brightness
-      cfg.freq   = 44100;           // PWM frequency for backlight
+      cfg.freq   = 10000;           // PWM frequency for backlight
       cfg.pwm_channel = 6;          // PWM channel number to use
 
       _light_instance.config(cfg);
